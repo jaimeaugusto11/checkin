@@ -31,3 +31,7 @@ export async function POST() {
     return NextResponse.json({ error: e.message || "Erro no envio em massa do WhatsApp." }, { status: 500 });
   }
 }
+function sendWhatsAppWithQr(arg0: { name: any; phone: any; token: any; appBase: string; }) {
+  throw new Error("Function not implemented.");
+}
+

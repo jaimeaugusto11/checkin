@@ -9,9 +9,6 @@ const nextConfig = {
     // ⚠️ AVISO: Isso desativa o ESLint no build
     ignoreDuringBuilds: true,
   },
-   typescript: {
-    // ⚠️ Ignora erros de TypeScript no build
-    ignoreBuildErrors: true,
-  },
+  
 }
 export default nextConfig

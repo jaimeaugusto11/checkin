@@ -1,3 +1,4 @@
+'use client'
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { verifyToken } from "@/lib/sign";
