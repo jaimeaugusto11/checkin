@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 255 255 255;
+  --fg: 17 24 39;
+}
+
+html, body, #__next { height: 100%; }
+
+body {
+  @apply bg-white text-gray-900 antialiased;
+}
+
+.container-page {
+  @apply max-w-6xl mx-auto px-4;
+}
