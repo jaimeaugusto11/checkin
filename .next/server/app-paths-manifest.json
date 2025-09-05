@@ -1,15 +1,6 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/checkin/route": "app/api/checkin/route.js",
   "/api/guests/route": "app/api/guests/route.js",
-  "/api/guests/[id]/invite/route": "app/api/guests/[id]/invite/route.js",
-  "/api/guests/[id]/route": "app/api/guests/[id]/route.js",
-  "/api/guests/send-all-whatsapp/route": "app/api/guests/send-all-whatsapp/route.js",
-  "/api/guests/bulk/route": "app/api/guests/bulk/route.js",
-  "/checkin/page": "app/checkin/page.js",
-  "/icon.svg/route": "app/icon.svg/route.js",
-  "/scan/page": "app/scan/page.js",
-  "/page": "app/page.js",
   "/api/guests/[id]/whatsapp/route": "app/api/guests/[id]/whatsapp/route.js",
-  "/api/guests/send-all/route": "app/api/guests/send-all/route.js"
+  "/icon.svg/route": "app/icon.svg/route.js",
+  "/page": "app/page.js"
 }
