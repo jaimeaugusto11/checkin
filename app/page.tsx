@@ -22,6 +22,7 @@ import {
   Plus,
 } from "lucide-react";
 import type { Guest } from "@/types/guests";
+import Image from "next/image";
 
 /* ===================== Tipos & Utils ===================== */
 
@@ -329,8 +330,8 @@ export default function Page() {
       <div className="sticky top-0 z-30 border-b bg-white/90 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-white">
-              <QrCode className="h-5 w-5" />
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-white text-white">
+              <Image src={"/logo.jpeg"} alt="logo" width={20} height={20} className="h-10 w-10" />
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold leading-tight">Gestor Diodigital</h1>
