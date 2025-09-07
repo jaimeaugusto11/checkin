@@ -5,17 +5,24 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 
+// app/api/checkin/route.ts (apenas trechos relevantes)
+
+// ... tipos:
 type GuestDoc = {
   fullName: string;
   email: string;
   whatsapp?: string | null;
-  category?: string | null;
+  category?: string | null;           // <-- já existia; vamos repassar
   status?: "invited" | "pending" | "checked_in";
   token?: string;
   checkInAt?: number | null;
   createdAt?: number;
   updatedAt?: number;
 };
+
+// compacta os dados para o cliente (agora inclui category)
+
+
 
 function jsonOK(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
@@ -35,6 +42,7 @@ function toClient(id: string, g: GuestDoc) {
     id,
     fullName: g.fullName,
     email: g.email,
+    category: g.category ?? null,     // <-- ADICIONADO
     status: g.status,
     checkInAt: g.checkInAt ?? null,
   };

@@ -14,7 +14,8 @@ type CheckinSuccess = {
     id?: string;
     fullName?: string;
     email?: string;
-    status?: string; // "checked_in" etc.
+    category?: string | null; // <-- ADICIONADO
+    status?: string;
     checkInAt?: number;
   };
   message?: string;
@@ -43,9 +44,12 @@ function extractToken(raw: string): string | null {
 
 export default function QrCodeReader() {
   const [result, setResult] = useState<string>("");
-  const [status, setStatus] = useState<"idle" | "success" | "error" | "loading">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "success" | "error" | "loading"
+  >("idle");
   const [msg, setMsg] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
+  const [guestCategory, setGuestCategory] = useState<string>("");
   const [when, setWhen] = useState<string>("");
 
   // Evita processar várias vezes o mesmo token em loop
@@ -57,6 +61,7 @@ export default function QrCodeReader() {
     setStatus("idle");
     setMsg("");
     setGuestName("");
+    setGuestCategory(""); // <-- ADICIONADO
     setWhen("");
     lastTokenRef.current = null;
     lockedRef.current = false;
@@ -86,12 +91,16 @@ export default function QrCodeReader() {
 
     // tenta POST
     try {
-      let res = await fetch(`/api/checkin?token=${encodeURIComponent(token)}`, { method: "POST" });
+      let res = await fetch(`/api/checkin?token=${encodeURIComponent(token)}`, {
+        method: "POST",
+      });
       let { r, data } = await parseResponse(res);
 
       // se o método não é permitido/rota não existe, tenta GET
       if (r.status === 405 || r.status === 404) {
-        res = await fetch(`/api/checkin?token=${encodeURIComponent(token)}`, { method: "GET" });
+        res = await fetch(`/api/checkin?token=${encodeURIComponent(token)}`, {
+          method: "GET",
+        });
         ({ r, data } = await parseResponse(res));
       }
 
@@ -99,7 +108,9 @@ export default function QrCodeReader() {
         // Erros conhecidos
         const em =
           (data as CheckinError)?.error ||
-          (typeof (data as any)?.message === "string" ? (data as any).message : null) ||
+          (typeof (data as any)?.message === "string"
+            ? (data as any).message
+            : null) ||
           "Não foi possível registar a presença.";
         setStatus("error");
         setMsg(em);
@@ -109,10 +120,14 @@ export default function QrCodeReader() {
       // Sucesso
       const ok = data as CheckinSuccess;
       const name = ok?.guest?.fullName || "";
-      const t = ok?.guest?.checkInAt ? new Date(ok.guest.checkInAt).toLocaleString() : new Date().toLocaleString();
+      const t = ok?.guest?.checkInAt
+        ? new Date(ok.guest.checkInAt).toLocaleString()
+        : new Date().toLocaleString();
+      const cat = ok?.guest?.category || "";
 
       setGuestName(name);
       setWhen(t);
+      setGuestCategory(cat);
       setStatus("success");
       setMsg(ok?.message || "Presença confirmada!");
 
@@ -143,7 +158,10 @@ export default function QrCodeReader() {
         return;
       }
 
-      if (lastTokenRef.current === token && (status === "loading" || status === "success")) {
+      if (
+        lastTokenRef.current === token &&
+        (status === "loading" || status === "success")
+      ) {
         return; // evita reprocessar o mesmo imediatamente
       }
 
@@ -203,12 +221,21 @@ export default function QrCodeReader() {
                 <QrCode className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-base font-semibold leading-tight sm:text-lg">Scanner de Check-in</h1>
-                <p className="text-xs text-slate-500">Aponte para o QR do convite</p>
+                <h1 className="text-base font-semibold leading-tight sm:text-lg">
+                  Scanner de Check-in
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Aponte para o QR do convite
+                </p>
               </div>
             </div>
 
-            <Button variant="ghost" size="lg" title="Reiniciar leitura" onClick={reset}>
+            <Button
+              variant="ghost"
+              size="lg"
+              title="Reiniciar leitura"
+              onClick={reset}
+            >
               <RefreshCw className="h-5 w-5" />
             </Button>
           </div>
@@ -228,12 +255,12 @@ export default function QrCodeReader() {
                 <div className="aspect-square overflow-hidden rounded-2xl border">
                   <Scanner
                     onScan={onScan}
-                      // @ts-expect-error: onError não está tipado mas é suportado pela lib
+                    // @ts-expect-error: onError não está tipado mas é suportado pela lib
                     onError={(error) => {
                       console.error("Erro no scanner:", error);
                       setStatus("error");
                       setMsg("Não foi possível aceder à câmara.");
-                    }} 
+                    }}
                     allowMultiple={false}
                     components={{
                       audio: true,
@@ -270,10 +297,21 @@ export default function QrCodeReader() {
                     Olá{guestName ? `, ${guestName}` : ""}! 🎉
                   </div>
                   <div className="text-slate-700">
-                    <span className="font-medium">Presença confirmada.</span> Bem-vindo(a)!
+                    <span className="font-medium">Presença confirmada.</span>{" "}
+                    Bem-vindo(a)!
                   </div>
-                  <div className="text-sm text-slate-500">Registado em: {when}</div>
-                  <Badge className="bg-green-100 text-green-700">Presente</Badge>
+                  {guestCategory && (
+                    <div className="text-sm">
+                      <span className="text-slate-500">Categoria: </span>
+                      <span className="font-medium">{guestCategory}</span>
+                    </div>
+                  )}
+                  <div className="text-sm text-slate-500">
+                    Registado em: {when}
+                  </div>
+                  <Badge className="bg-green-100 text-green-700">
+                    Presente
+                  </Badge>
                 </div>
               )}
 
@@ -283,7 +321,9 @@ export default function QrCodeReader() {
 
               {status === "error" && (
                 <div className="space-y-2">
-                  <div className="text-red-600">{msg || "O QR não é válido."}</div>
+                  <div className="text-red-600">
+                    {msg || "O QR não é válido."}
+                  </div>
                   <Badge className="bg-red-100 text-red-700">Falhou</Badge>
                 </div>
               )}
