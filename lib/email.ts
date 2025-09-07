@@ -29,18 +29,17 @@ export async function sendInviteEmail(email: string, name: string, token: string
   </div>`;
 
   await resend.emails.send({
-    from: process.env.EMAIL_FROM || "Convites <no-reply@example.com>",
-    to: [email],
-    subject: `Convite - ${eventName}`,
-    html,
-    reply_to: process.env.EMAIL_REPLY_TO || undefined,
-    attachments: [
-      {
-        filename: "qrcode.png",
-        content: qrBuffer.toString("base64"),
-        encoding: "base64",
-        cid: "qrcode",
-      },
-    ],
-  });
+  from: process.env.EMAIL_FROM || "Convites <no-reply@example.com>",
+  to: [email],
+  subject: `Convite - ${eventName}`,
+  html,
+  replyTo: process.env.EMAIL_REPLY_TO || undefined, // ✅ corrigido
+  attachments: [
+    {
+      filename: "qrcode.png",
+      content: qrBuffer, // ✅ usa Buffer direto (sem precisar encoding)
+      cid: "qrcode",
+    } as any,
+  ],
+});
 }

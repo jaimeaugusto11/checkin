@@ -32,7 +32,13 @@ type ImportRow = {
   category?: string;
 };
 
-function normalizeHeader(h: string) {
+
+type JsonGuests = { guests?: Guest[] };
+type JsonError = { error?: string; details?: unknown };
+type JsonBulk = { error?: string };
+type JsonSendAllWa = { sent?: number; skipped?: number; failed?: number; error?: string };
+
+function normalizeHeader(h: string): keyof ImportRow | string {
   const s = h.trim().toLowerCase();
   if (s.includes("nome")) return "fullName";
   if (s.includes("e-mail") || s.includes("email")) return "email";
@@ -41,7 +47,7 @@ function normalizeHeader(h: string) {
   return s;
 }
 
-function clsx(...c: (string | false | undefined | null)[]) {
+function clsx(...c: Array<string | false | undefined | null>): string {
   return c.filter(Boolean).join(" ");
 }
 
@@ -49,9 +55,9 @@ function clsx(...c: (string | false | undefined | null)[]) {
 
 export default function Page() {
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState("");
-  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [filter, setFilter] = useState<string>("");
+  const [query, setQuery] = useState<string>("");
   const [preview, setPreview] = useState<ImportRow[]>([]);
   const [busyAction, setBusyAction] = useState<null | string>(null);
 
@@ -59,15 +65,18 @@ export default function Page() {
   const dropRef = useRef<HTMLLabelElement>(null);
 
   /* -------- Fetch inicial -------- */
-  async function fetchGuests() {
+  async function fetchGuests(): Promise<void> {
     setLoading(true);
-    const r = await fetch("/api/guests");
-    const j = await r.json();
-    setGuests(j.guests || []);
-    setLoading(false);
+    try {
+      const r = await fetch("/api/guests");
+      const j = (await r.json().catch(() => ({}))) as JsonGuests;
+      setGuests(Array.isArray(j.guests) ? j.guests : []);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
-    fetchGuests();
+    void fetchGuests();
   }, []);
 
   /* -------- Debounce pesquisa -------- */
@@ -77,31 +86,38 @@ export default function Page() {
   }, [query]);
 
   /* -------- XLSX: parse helpers -------- */
-  function parseWorkbook(data: ArrayBuffer) {
+  function parseWorkbook(data: ArrayBuffer): ImportRow[] {
     const wb = XLSX.read(new Uint8Array(data), { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const sheet = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { header: 1 });
-    const [head, ...rows] = sheet;
-    if (!head) return [];
+    if (!ws) return [];
 
-    const map = (head as string[]).map(normalizeHeader);
-    const parsed: ImportRow[] = rows
+    const sheet = XLSX.utils.sheet_to_json<unknown[]>(ws as XLSX.WorkSheet, { header: 1 });
+    const [head, ...rows] = sheet as [unknown[], ...unknown[][]] | [];
+    if (!head || !Array.isArray(head)) return [];
+
+    const map = (head as unknown[]).map((h) => normalizeHeader(String(h ?? "")));
+    const parsed: ImportRow[] = (rows as unknown[][])
       .filter((r) => Array.isArray(r) && r.length > 0)
-      .map((r: any[]) => {
-        const obj: any = {};
-        map.forEach((k, i) => (obj[k] = (r[i] ?? "").toString().trim()));
-        return {
+      .map((r) => {
+        const obj: Record<string, string> = {};
+        map.forEach((k, i) => {
+          const key = String(k);
+          const cell = r[i];
+          obj[key] = typeof cell === "string" ? cell.trim() : String(cell ?? "").trim();
+        });
+        const row: ImportRow = {
           fullName: obj.fullName || "",
           email: obj.email || "",
           whatsapp: obj.whatsapp || "",
           category: obj.category || "",
         };
+        return row;
       })
-      .filter((r) => r.fullName && r.email);
+      .filter((r) => Boolean(r.fullName) && Boolean(r.email));
     return parsed;
   }
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function onFile(e: React.ChangeEvent<HTMLInputElement>): void {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
@@ -109,36 +125,44 @@ export default function Page() {
     reader.readAsArrayBuffer(f);
   }
 
-  const onDrop = useCallback((e: React.DragEvent) => {
+  const onDrop = useCallback((e: React.DragEvent<HTMLElement>): void => {
     e.preventDefault();
     e.stopPropagation();
-    const f = e.dataTransfer.files?.[0];
+    const f = e.dataTransfer?.files?.[0];
     if (!f) return;
     const reader = new FileReader();
     reader.onload = () => setPreview(parseWorkbook(reader.result as ArrayBuffer));
     reader.readAsArrayBuffer(f);
   }, []);
 
+  // Conectando eventos nativos com tipos seguros (sem any)
   useEffect(() => {
     const el = dropRef.current;
     if (!el) return;
-    const prevent = (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const prevent = (ev: Event) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+    const handleDrop = (ev: Event) => {
+      // converte Event -> React.DragEvent signature-like
+      onDrop(ev as unknown as React.DragEvent<HTMLElement>);
     };
     el.addEventListener("dragover", prevent);
     el.addEventListener("dragenter", prevent);
-    el.addEventListener("drop", onDrop as any);
+    el.addEventListener("drop", handleDrop);
     return () => {
       el.removeEventListener("dragover", prevent);
       el.removeEventListener("dragenter", prevent);
-      el.removeEventListener("drop", onDrop as any);
+      el.removeEventListener("drop", handleDrop);
     };
   }, [onDrop]);
 
   /* -------- Ações -------- */
-  async function importAll(sendEmails: boolean) {
-    if (!preview.length) return alert("Nenhum dado para importar.");
+  async function importAll(sendEmails: boolean): Promise<void> {
+    if (!preview.length) {
+      alert("Nenhum dado para importar.");
+      return;
+    }
     setBusyAction(sendEmails ? "import_send" : "import");
     try {
       const r = await fetch("/api/guests/bulk", {
@@ -147,7 +171,7 @@ export default function Page() {
         body: JSON.stringify({ rows: preview, sendEmails }),
       });
       if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
+        const j = (await r.json().catch(() => ({}))) as JsonBulk;
         alert(j.error || "Falha na importação");
       } else {
         setPreview([]);
@@ -159,13 +183,13 @@ export default function Page() {
     }
   }
 
-  async function sendAll() {
+  async function sendAll(): Promise<void> {
     if (!confirm("Enviar QR por E-mail para todos os convidados?")) return;
     setBusyAction("email_all");
     try {
       const r = await fetch("/api/guests/send-all", { method: "POST" });
       if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
+        const j = (await r.json().catch(() => ({}))) as JsonError;
         alert(j.error || "Falha ao enviar para todos");
       } else {
         alert("Convites enviados!");
@@ -176,7 +200,7 @@ export default function Page() {
     }
   }
 
-  async function sendOne(id: string) {
+  async function sendOne(id: string): Promise<void> {
     setBusyAction(`email_${id}`);
     try {
       const r = await fetch(`/api/guests/${id}/invite`, { method: "POST" });
@@ -187,13 +211,13 @@ export default function Page() {
     }
   }
 
-  async function deleteGuest(id: string) {
+  async function deleteGuest(id: string): Promise<void> {
     if (!confirm("Tens a certeza que queres apagar este convidado? Esta ação é irreversível.")) return;
     setBusyAction(`delete_${id}`);
     try {
       const r = await fetch(`/api/guests/${id}`, { method: "DELETE" });
       if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
+        const j = (await r.json().catch(() => ({}))) as JsonError;
         alert(j?.error || "Falha ao apagar convidado.");
       } else {
         await fetchGuests();
@@ -203,19 +227,33 @@ export default function Page() {
     }
   }
 
-  async function sendWhatsAppOne(id: string) {
+  async function sendWhatsAppOne(id: string): Promise<void> {
     setBusyAction(`wa_${id}`);
     try {
       const r = await fetch(`/api/guests/${id}/whatsapp`, { method: "POST" });
       const ct = r.headers.get("content-type") || "";
       const raw = await r.text();
-      let data: any = {};
-      try { data = ct.includes("application/json") && raw ? JSON.parse(raw) : { raw }; }
-      catch { data = { raw }; }
-      if (!r.ok) {
-        alert((data?.error || "Falha ao enviar WhatsApp.") + (data?.details ? `\nDetalhes: ${JSON.stringify(data.details)}` : ""));
-        return;
+      let data: JsonError | { raw: string } = {};
+      try {
+        data = ct.includes("application/json") && raw ? (JSON.parse(raw) as JsonError) : { raw };
+      } catch {
+        data = { raw };
       }
+      if (!r.ok) {
+  let message = "Falha ao enviar WhatsApp.";
+
+  if ("error" in data && data.error) {
+    message = data.error;
+  }
+
+  if ("details" in data && data.details) {
+    message += `\nDetalhes: ${JSON.stringify(data.details)}`;
+  }
+
+  alert(message);
+  return;
+}
+
       alert("WhatsApp enviado!");
       await fetchGuests();
     } finally {
@@ -223,16 +261,21 @@ export default function Page() {
     }
   }
 
-  async function sendWhatsAppAll() {
+  async function sendWhatsAppAll(): Promise<void> {
     if (!confirm("Enviar WhatsApp com QR para todos os convidados com WhatsApp definido?")) return;
     setBusyAction("wa_all");
     try {
       const r = await fetch(`/api/guests/send-all-whatsapp`, { method: "POST" });
-      const j = await r.json().catch(() => ({}));
+      const j = (await r.json().catch(() => ({}))) as JsonSendAllWa | JsonError;
       if (!r.ok) {
-        alert(j?.error || "Falha ao enviar WhatsApp em massa.");
+        const je = j as JsonError;
+        alert(je?.error || "Falha ao enviar WhatsApp em massa.");
       } else {
-        alert(`WhatsApp → enviados: ${j.sent}, ignorados: ${j.skipped}, falhados: ${j.failed}`);
+        const ok = j as JsonSendAllWa;
+        const sent = ok.sent ?? 0;
+        const skipped = ok.skipped ?? 0;
+        const failed = ok.failed ?? 0;
+        alert(`WhatsApp → enviados: ${sent}, ignorados: ${skipped}, falhados: ${failed}`);
       }
     } finally {
       setBusyAction(null);
@@ -240,20 +283,23 @@ export default function Page() {
   }
 
   /* -------- Filtro -------- */
-  const filtered = useMemo(() => {
+  const filtered = useMemo<Guest[]>(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return guests;
-    return guests.filter(
-      (g) =>
+    return guests.filter((g) => {
+      const w = (g.whatsapp || "").toLowerCase();
+      const c = (g.category || "").toLowerCase();
+      return (
         g.fullName.toLowerCase().includes(q) ||
         g.email.toLowerCase().includes(q) ||
-        (g.whatsapp || "").toLowerCase().includes(q) ||
-        (g.category || "").toLowerCase().includes(q)
-    );
+        w.includes(q) ||
+        c.includes(q)
+      );
+    });
   }, [filter, guests]);
 
   /* -------- Export -------- */
-  function exportCsv() {
+  function exportCsv(): void {
     const headers = ["Nome", "Email", "WhatsApp", "Categoria", "Estado", "CheckInAt"];
     const rows = guests.map((g) => [
       g.fullName,
@@ -287,7 +333,7 @@ export default function Page() {
               <QrCode className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold leading-tight">Gestor de Convidados</h1>
+              <h1 className="truncate text-lg font-semibold leading-tight">Gestor Diodigital</h1>
               <p className="text-xs text-slate-500">Importar • Convidar • Check-in</p>
             </div>
 
@@ -295,10 +341,10 @@ export default function Page() {
             <div className="ml-auto hidden items-center gap-2 md:flex">
               <Button
                 variant="ghost"
-                size="icon"
+                size="md"
                 title="Atualizar"
                 disabled={loading || busyAction !== null}
-                onClick={fetchGuests}
+                onClick={() => void fetchGuests()}
                 className="rounded-lg"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -306,7 +352,7 @@ export default function Page() {
 
               <Button
                 variant="ghost"
-                size="icon"
+                size="md"
                 title="Exportar CSV"
                 onClick={exportCsv}
                 className="rounded-lg"
@@ -315,16 +361,16 @@ export default function Page() {
               </Button>
 
               <a href="/scan" title="Abrir Scanner">
-                <Button variant="default" size="icon" className="rounded-lg">
+                <Button variant="default" size="md" className="rounded-lg">
                   <QrCode className="h-4 w-4" />
                 </Button>
               </a>
 
               <Button
                 variant="default"
-                size="icon"
+                size="md"
                 title="Enviar e-mail a todos"
-                onClick={sendAll}
+                onClick={() => void sendAll()}
                 disabled={busyAction !== null}
                 className="rounded-lg"
               >
@@ -333,9 +379,9 @@ export default function Page() {
 
               <Button
                 variant="default"
-                size="icon"
+                size="md"
                 title="WhatsApp a todos"
-                onClick={sendWhatsAppAll}
+                onClick={() => void sendWhatsAppAll()}
                 disabled={busyAction !== null}
                 className="rounded-lg"
               >
@@ -413,7 +459,7 @@ export default function Page() {
                     </Table>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button disabled={busyAction !== null} onClick={() => importAll(false)} className="flex-1">
+                    <Button disabled={busyAction !== null} onClick={() => void importAll(false)} className="flex-1">
                       {busyAction === "import" ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -421,7 +467,7 @@ export default function Page() {
                       )}
                       Importar (sem enviar)
                     </Button>
-                    <Button disabled={busyAction !== null} onClick={() => importAll(true)} className="flex-1">
+                    <Button disabled={busyAction !== null} onClick={() => void importAll(true)} className="flex-1">
                       {busyAction === "import_send" ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -461,11 +507,9 @@ export default function Page() {
                 <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-10 text-center">
                   <div className="mb-3 text-4xl">🗂️</div>
                   <div className="text-base font-medium">Nada encontrado</div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    Ajusta a pesquisa ou importa um XLSX.
-                  </div>
+                  <div className="mt-1 text-sm text-slate-600">Ajusta a pesquisa ou importa um XLSX.</div>
                   <div className="mt-4 flex gap-2">
-                    <Button variant="outline" onClick={fetchGuests}>
+                    <Button variant="outline" onClick={() => void fetchGuests()}>
                       <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
                     </Button>
                     <Button onClick={() => fileInputRef.current?.click()}>
@@ -475,7 +519,7 @@ export default function Page() {
                 </div>
               )}
 
-              {/* Desktop: tabela sem scroll desnecessário (quebra de linha + colunas adaptativas) */}
+              {/* Desktop: tabela */}
               {filtered.length > 0 && (
                 <div className="hidden sm:block">
                   <div className="rounded-xl border">
@@ -515,36 +559,36 @@ export default function Page() {
                                 )}
                               </TD>
                               <TD>
-                                {/* Ações ícones-only em flex-row */}
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    size="icon"
+                                    size="md"
                                     variant="ghost"
                                     className="h-8 w-8 rounded-md"
                                     title="Abrir QR / link de check-in"
-                                    onClick={() =>
-                                      window.open(`/checkin?token=${encodeURIComponent(g.token)}`, "_blank")
-                                    }
+                                    onClick={() => {
+                                      const url = `/checkin?token=${encodeURIComponent(g.token)}`;
+                                      if (typeof window !== "undefined") window.open(url, "_blank", "noopener,noreferrer");
+                                    }}
                                   >
                                     <QrCode className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    size="icon"
+                                    size="md"
                                     variant="ghost"
                                     className="h-8 w-8 rounded-md"
                                     title="Enviar e-mail"
                                     disabled={emailBusy || busyAction !== null}
-                                    onClick={() => sendOne(g.id)}
+                                    onClick={() => void sendOne(g.id)}
                                   >
                                     {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                                   </Button>
                                   <Button
-                                    size="icon"
+                                    size="md"
                                     variant="ghost"
                                     className="h-8 w-8 rounded-md"
                                     title="Enviar WhatsApp"
                                     disabled={waBusy || busyAction !== null}
-                                    onClick={() => sendWhatsAppOne(g.id)}
+                                    onClick={() => void sendWhatsAppOne(g.id)}
                                   >
                                     {waBusy ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -553,12 +597,12 @@ export default function Page() {
                                     )}
                                   </Button>
                                   <Button
-                                    size="icon"
+                                    size="md"
                                     variant="ghost"
                                     className="h-8 w-8 rounded-md text-red-600 hover:text-red-700"
                                     title={g.status === "checked_in" ? "Não é possível apagar presença registada" : "Apagar convidado"}
                                     disabled={delBusy || g.status === "checked_in" || busyAction !== null}
-                                    onClick={() => deleteGuest(g.id)}
+                                    onClick={() => void deleteGuest(g.id)}
                                   >
                                     {delBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                   </Button>
@@ -573,7 +617,7 @@ export default function Page() {
                 </div>
               )}
 
-              {/* Mobile: cartões compactos (sem scroll) */}
+              {/* Mobile: cartões compactos */}
               <div className="sm:hidden space-y-3">
                 {filtered.map((g) => {
                   const emailBusy = busyAction === `email_${g.id}`;
@@ -601,34 +645,36 @@ export default function Page() {
                           </div>
                         </div>
 
-                        {/* Ações ícones-only (flex-row) */}
                         <div className="flex shrink-0 items-center gap-1">
                           <Button
-                            size="icon"
+                            size="md"
                             variant="ghost"
                             className="h-9 w-9 rounded-lg"
                             title="QR / link"
-                            onClick={() => window.open(`/checkin?token=${encodeURIComponent(g.token)}`, "_blank")}
+                            onClick={() => {
+                              const url = `/checkin?token=${encodeURIComponent(g.token)}`;
+                              if (typeof window !== "undefined") window.open(url, "_blank", "noopener,noreferrer");
+                            }}
                           >
                             <QrCode className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="icon"
+                            size="md"
                             variant="ghost"
                             className="h-9 w-9 rounded-lg"
                             title="E-mail"
                             disabled={emailBusy || busyAction !== null}
-                            onClick={() => sendOne(g.id)}
+                            onClick={() => void sendOne(g.id)}
                           >
                             {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                           </Button>
                           <Button
-                            size="icon"
+                            size="md"
                             variant="ghost"
                             className="h-9 w-9 rounded-lg"
                             title="WhatsApp"
                             disabled={waBusy || busyAction !== null}
-                            onClick={() => sendWhatsAppOne(g.id)}
+                            onClick={() => void sendWhatsAppOne(g.id)}
                           >
                             {waBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
                           </Button>
@@ -643,30 +689,30 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Action bar fixa (mobile): ícones-only, sem scroll extra */}
+      {/* Action bar fixa (mobile) */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <Button
             variant="ghost"
-            size="icon"
+            size="md"
             className="h-10 w-10 rounded-lg"
             title="Atualizar"
-            onClick={fetchGuests}
+            onClick={() => void fetchGuests()}
             disabled={loading || busyAction !== null}
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
           </Button>
           <a href="/scan" title="Scanner">
-            <Button variant="default" size="icon" className="h-10 w-10 rounded-lg">
+            <Button variant="default" size="md" className="h-10 w-10 rounded-lg">
               <QrCode className="h-5 w-5" />
             </Button>
           </a>
           <Button
             variant="default"
-            size="icon"
+            size="md"
             className="h-10 w-10 rounded-lg"
             title="WhatsApp a todos"
-            onClick={sendWhatsAppAll}
+            onClick={() => void sendWhatsAppAll()}
             disabled={busyAction !== null}
           >
             {busyAction === "wa_all" ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}

@@ -16,15 +16,13 @@ export default function QrCodeReader() {
             setResult(detectedCodes[0].rawValue);
           }
         }}
-        onError={(error: any) => {
-          console.error("Erro ao escanear:", error);
-        }}
+        {...({ onError: (error: any) => console.error("Erro:", error) } as any)}
         allowMultiple={false} // só lê 1 QR por vez
         components={{
           audio: true, // som ao detectar
           finder: true, // mira no centro
         }}
-        styles={{ width: "300px", height: "300px" }}
+        style={{ width: 300, height: 300 }}
       />
 
       {/* Resultado do QR Code */}

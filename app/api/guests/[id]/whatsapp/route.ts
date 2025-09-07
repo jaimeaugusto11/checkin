@@ -41,8 +41,12 @@ export async function POST(
     const appBase = process.env.APP_BASE_URL || "http://localhost:3000";
     const caption = `Saudações Prezado(a) ${
       g.fullName
-    }! Este é o teu Código QR para o check-in na Imersão Jurídica.
-Guarde-o para usa-lo no dia do evento - dia 12 de Setembro.\n`;
+    }! Em nome da LB - Conexão, a Diodigital.Lda, 
+vem por meio desta fornecer o teu Código QR para o check-in na Imersão Jurídica.
+Sugerimos guarda-lo para uso no dia do evento que será 12 de Setembro.
+
+Atenciosamente
+  DIODIGITAL\n`;
 
     const providerResp = await sendWhatsappImage({
       to,

@@ -3,17 +3,16 @@ import { UTApi } from "uploadthing/server";
 
 /** Envia um Buffer (PNG) para a UploadThing e devolve URL pública */
 export async function uploadQrAndGetUrl(png: Buffer, filename = "qrcode.png") {
-  const token = process.env.UPLOADTHING_TOKEN;
-  if (!token) {
-    throw new Error("UPLOADTHING_TOKEN em falta");
+  if (!process.env.UPLOADTHING_SECRET && !process.env.UPLOADTHING_TOKEN) {
+    throw new Error("UPLOADTHING_SECRET/UPLOADTHING_TOKEN em falta");
   }
 
   try {
-    // Instancia o UTApi apenas agora (evita crash a nível de import)
-    const utapi = new UTApi({ token });
+    // Instancia sem passar token (a lib usa process.env)
+    const utapi = new UTApi();
 
-    // Node 18+ (Next) expõe File/Blob via undici
-    const file = new File([png], filename, { type: "image/png" });
+    // Converter Buffer -> Uint8Array (aceito por File)
+    const file = new File([new Uint8Array(png)], filename, { type: "image/png" });
 
     const res = await utapi.uploadFiles(file);
     const item: any = Array.isArray(res) ? res[0] : res;
