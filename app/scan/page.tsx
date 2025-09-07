@@ -208,7 +208,7 @@ export default function QrCodeReader() {
               </div>
             </div>
 
-            <Button variant="ghost" size="icon" title="Reiniciar leitura" onClick={reset}>
+            <Button variant="ghost" size="lg" title="Reiniciar leitura" onClick={reset}>
               <RefreshCw className="h-5 w-5" />
             </Button>
           </div>
@@ -228,11 +228,12 @@ export default function QrCodeReader() {
                 <div className="aspect-square overflow-hidden rounded-2xl border">
                   <Scanner
                     onScan={onScan}
+                      // @ts-expect-error: onError não está tipado mas é suportado pela lib
                     onError={(error) => {
                       console.error("Erro no scanner:", error);
                       setStatus("error");
                       setMsg("Não foi possível aceder à câmara.");
-                    }}
+                    }} 
                     allowMultiple={false}
                     components={{
                       audio: true,
