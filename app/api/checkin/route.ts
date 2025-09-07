@@ -24,14 +24,12 @@ function jsonErr(error: string, status = 400, details?: unknown) {
   return NextResponse.json({ ok: false, error, details: details ?? null }, { status });
 }
 
-/** Lê e valida o token do URL (?token=...) */
 function readToken(req: NextRequest) {
   const url = new URL(req.url);
   const token = url.searchParams.get("token")?.trim();
   return token && token.length > 0 ? token : null;
 }
 
-/** Devolve apenas o que o cliente precisa (sem dados sensíveis) */
 function toClient(id: string, g: GuestDoc) {
   return {
     id,
@@ -42,9 +40,7 @@ function toClient(id: string, g: GuestDoc) {
   };
 }
 
-/** Marca check-in de maneira idempotente */
 async function performCheckinByToken(token: string) {
-  // Procura por token exacto (como tu salvaste no doc)
   const snap = await adminDb
     .collection("guests")
     .where("token", "==", token)
@@ -52,7 +48,6 @@ async function performCheckinByToken(token: string) {
     .get();
 
   if (snap.empty) {
-    // Nenhum convidado com esse token
     return { notFound: true as const };
   }
 
@@ -60,35 +55,35 @@ async function performCheckinByToken(token: string) {
   const data = doc.data() as GuestDoc;
 
   const now = Date.now();
-  let updated = false;
 
-  // Se já estava presente, não sobrescreve a hora
-  if (data.status !== "checked_in") {
-    await doc.ref.update({
-      status: "checked_in",
-      checkInAt: now,
-      updatedAt: now,
-    });
-    updated = true;
+  if (data.status === "checked_in") {
+    // já estava dentro
+    return {
+      id: doc.id,
+      guest: toClient(doc.id, data),
+      already: true as const,
+    };
   }
 
-  const refreshed = updated
-    ? ({
-        ...(data as any),
-        status: "checked_in",
-        checkInAt: now,
-        updatedAt: now,
-      } as GuestDoc)
-    : data;
+  // ainda não estava presente → marcar agora
+  await doc.ref.update({
+    status: "checked_in",
+    checkInAt: now,
+    updatedAt: now,
+  });
 
   return {
     id: doc.id,
-    guest: toClient(doc.id, refreshed),
-    updated,
+    guest: toClient(doc.id, {
+      ...data,
+      status: "checked_in",
+      checkInAt: now,
+      updatedAt: now,
+    }),
+    updated: true as const,
   };
 }
 
-/** Handler partilhado para GET/POST */
 async function handle(req: NextRequest) {
   try {
     const token = readToken(req);
@@ -99,13 +94,17 @@ async function handle(req: NextRequest) {
       return jsonErr("QR inválido ou token não encontrado.", 404);
     }
 
-    const message = res.updated
-      ? "Presença confirmada!"
-      : "Convidado já estava marcado como presente.";
+    if ("already" in res) {
+      return jsonOK({
+        ok: true,
+        message: "O convidado já está dentro.",
+        guest: res.guest,
+      });
+    }
 
     return jsonOK({
       ok: true,
-      message,
+      message: "Presença confirmada!",
       guest: res.guest,
     });
   } catch (e: any) {
