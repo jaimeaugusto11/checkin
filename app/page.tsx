@@ -369,7 +369,7 @@ export default function Page() {
 
               <Button
                 variant="default"
-                size="md"
+                size="lg"
                 title="Enviar e-mail a todos"
                 onClick={() => void sendAll()}
                 disabled={busyAction !== null}
@@ -380,7 +380,7 @@ export default function Page() {
 
               <Button
                 variant="default"
-                size="md"
+                size="lg"
                 title="WhatsApp a todos"
                 onClick={() => void sendWhatsAppAll()}
                 disabled={busyAction !== null}
@@ -584,7 +584,7 @@ export default function Page() {
                                     {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                                   </Button>
                                   <Button
-                                    size="md"
+                                    size="lg"
                                     variant="ghost"
                                     className="h-8 w-8 rounded-md"
                                     title="Enviar WhatsApp"
@@ -598,7 +598,7 @@ export default function Page() {
                                     )}
                                   </Button>
                                   <Button
-                                    size="md"
+                                    size="lg"
                                     variant="ghost"
                                     className="h-8 w-8 rounded-md text-red-600 hover:text-red-700"
                                     title={g.status === "checked_in" ? "Não é possível apagar presença registada" : "Apagar convidado"}
@@ -648,7 +648,7 @@ export default function Page() {
 
                         <div className="flex shrink-0 items-center gap-1">
                           <Button
-                            size="md"
+                            size="lg"
                             variant="ghost"
                             className="h-9 w-9 rounded-lg"
                             title="QR / link"
@@ -660,7 +660,7 @@ export default function Page() {
                             <QrCode className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="md"
+                            size="lg"
                             variant="ghost"
                             className="h-9 w-9 rounded-lg"
                             title="E-mail"
@@ -670,7 +670,7 @@ export default function Page() {
                             {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                           </Button>
                           <Button
-                            size="md"
+                            size="lg"
                             variant="ghost"
                             className="h-9 w-9 rounded-lg"
                             title="WhatsApp"
