@@ -19,11 +19,7 @@ export async function sendInviteEmail(email: string, name: string, token: string
     <p style="text-align:center; margin:16px 0">
       <img src="cid:qrcode" alt="QR Code" style="max-width:200px; width:100%; height:auto" />
     </p>
-    <p style="margin:16px 0">Ou aceda diretamente:
-      <a href="${appBase}/checkin?token=${encodeURIComponent(token)}">
-        ${appBase}/checkin?token=${encodeURIComponent(token)}
-      </a>
-    </p>
+  
     <hr />
     <small>Se não reconhece este convite, ignore este e-mail.</small>
   </div>`;
