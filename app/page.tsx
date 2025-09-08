@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, TBody, TH, TD } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import {
   Download,
   Mail,
@@ -32,7 +33,6 @@ type ImportRow = {
   whatsapp?: string;
   category?: string;
 };
-
 
 type JsonGuests = { guests?: Guest[] };
 type JsonError = { error?: string; details?: unknown };
@@ -61,6 +61,7 @@ export default function Page() {
   const [query, setQuery] = useState<string>("");
   const [preview, setPreview] = useState<ImportRow[]>([]);
   const [busyAction, setBusyAction] = useState<null | string>(null);
+  const [showImport, setShowImport] = useState<boolean>(false); // 👈 Toggle importar
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLLabelElement>(null);
@@ -136,7 +137,6 @@ export default function Page() {
     reader.readAsArrayBuffer(f);
   }, []);
 
-  // Conectando eventos nativos com tipos seguros (sem any)
   useEffect(() => {
     const el = dropRef.current;
     if (!el) return;
@@ -145,7 +145,6 @@ export default function Page() {
       ev.stopPropagation();
     };
     const handleDrop = (ev: Event) => {
-      // converte Event -> React.DragEvent signature-like
       onDrop(ev as unknown as React.DragEvent<HTMLElement>);
     };
     el.addEventListener("dragover", prevent);
@@ -241,20 +240,14 @@ export default function Page() {
         data = { raw };
       }
       if (!r.ok) {
-  let message = "Falha ao enviar WhatsApp.";
-
-  if ("error" in data && data.error) {
-    message = data.error;
-  }
-
-  if ("details" in data && data.details) {
-    message += `\nDetalhes: ${JSON.stringify(data.details)}`;
-  }
-
-  alert(message);
-  return;
-}
-
+        let message = "Falha ao enviar WhatsApp.";
+        if ("error" in data && data.error) message = data.error;
+        if ("details" in data && (data as any).details) {
+          message += `\nDetalhes: ${JSON.stringify((data as any).details)}`;
+        }
+        alert(message);
+        return;
+      }
       alert("WhatsApp enviado!");
       await fetchGuests();
     } finally {
@@ -339,30 +332,24 @@ export default function Page() {
             </div>
 
             {/* Ações principais (ícones-only) */}
-            <div className="ml-auto hidden items-center gap-2 md:flex">
+            <div className="ml-auto hidden items-center gap-1 md:flex">
               <Button
                 variant="ghost"
-                size="md"
+                size="lg"
                 title="Atualizar"
                 disabled={loading || busyAction !== null}
                 onClick={() => void fetchGuests()}
-                className="rounded-lg"
+                className="rounded-md"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               </Button>
 
-              <Button
-                variant="ghost"
-                size="lg"
-                title="Exportar CSV"
-                onClick={exportCsv}
-                className="rounded-lg"
-              >
+              <Button variant="ghost" size="lg" title="Exportar CSV" onClick={exportCsv} className="rounded-md">
                 <Download className="h-4 w-4" />
               </Button>
 
               <a href="/scan" title="Abrir Scanner">
-                <Button variant="default" size="lg" className="rounded-lg">
+                <Button variant="default" size="lg" className="rounded-md">
                   <QrCode className="h-4 w-4" />
                 </Button>
               </a>
@@ -373,7 +360,7 @@ export default function Page() {
                 title="Enviar e-mail a todos"
                 onClick={() => void sendAll()}
                 disabled={busyAction !== null}
-                className="rounded-lg"
+                className="rounded-md"
               >
                 {busyAction === "email_all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
@@ -384,7 +371,7 @@ export default function Page() {
                 title="WhatsApp a todos"
                 onClick={() => void sendWhatsAppAll()}
                 disabled={busyAction !== null}
-                className="rounded-lg"
+                className="rounded-md"
               >
                 {busyAction === "wa_all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
               </Button>
@@ -395,112 +382,122 @@ export default function Page() {
 
       {/* Conteúdo */}
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-3 pb-2">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-slate-400" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Pesquisar nome, email, WhatsApp, categoria…"
+              className="w-72 max-w-full rounded-lg"
+            />
+          </div>
+
+          {/* Toggle Importar XLSX */}
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+            <span className="text-xs text-slate-600">Importar XLSX</span>
+            <Switch checked={showImport} onCheckedChange={setShowImport} />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* Importar */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5" /> Importar XLSX
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-slate-600">
-                Estrutura: <b>Nome completo</b>, <b>WhatsApp</b>, <b>E-mail</b>, <b>Categoria</b> (1ª folha).
-              </p>
+          {/* Importar (colapsável via toggle) */}
+          {showImport && (
+            <Card className="lg:col-span-1">
+              <CardHeader className="py-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <FileSpreadsheet className="h-4 w-4" /> Importar XLSX
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-slate-600">
+                  Estrutura: <b>Nome completo</b>, <b>WhatsApp</b>, <b>E-mail</b>, <b>Categoria</b> (1ª folha).
+                </p>
 
-              <label
-                ref={dropRef}
-                className={clsx(
-                  "group relative block cursor-pointer rounded-xl border border-dashed p-5 transition",
-                  "border-slate-300 hover:border-slate-400 hover:bg-slate-50"
-                )}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-slate-900 text-white">
-                    <Upload className="h-5 w-5" />
+                <label
+                  ref={dropRef}
+                  className={clsx(
+                    "group relative block cursor-pointer rounded-lg border border-dashed p-4 transition",
+                    "border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                  )}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-md bg-slate-900 text-white">
+                      <Upload className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">Arrasta o .xlsx aqui</div>
+                      <div className="text-xs text-slate-500">ou toca para selecionar</div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">Arrasta o .xlsx aqui</div>
-                    <div className="text-xs text-slate-500">ou toca para selecionar</div>
-                  </div>
-                </div>
-                <input ref={fileInputRef} type="file" accept=".xlsx" className="sr-only" onChange={onFile} />
-              </label>
+                  <input ref={fileInputRef} type="file" accept=".xlsx" className="sr-only" onChange={onFile} />
+                </label>
 
-              {preview.length > 0 ? (
-                <>
-                  <div className="text-sm text-slate-700">
-                    Pré-visualização <span className="text-slate-500">({preview.length} linhas)</span>
-                  </div>
-                  <div className="rounded-lg border">
-                    <Table>
-                      <THead>
-                        <tr>
-                          <TH>Nome</TH>
-                          <TH>Email</TH>
-                          <TH className="hidden md:table-cell">WhatsApp</TH>
-                          <TH className="hidden lg:table-cell">Categoria</TH>
-                        </tr>
-                      </THead>
-                      <TBody>
-                        {preview.slice(0, 10).map((r, i) => (
-                          <tr key={i} className="align-top">
-                            <TD className="whitespace-pre-wrap break-words">{r.fullName}</TD>
-                            <TD className="whitespace-pre-wrap break-words">{r.email}</TD>
-                            <TD className="hidden whitespace-pre-wrap break-words md:table-cell">
-                              {r.whatsapp || "-"}
-                            </TD>
-                            <TD className="hidden whitespace-pre-wrap break-words lg:table-cell">
-                              {r.category || "-"}
-                            </TD>
+                {preview.length > 0 ? (
+                  <>
+                    <div className="text-xs text-slate-700">
+                      Pré-visualização <span className="text-slate-500">({preview.length} linhas)</span>
+                    </div>
+                    <div className="rounded-lg border">
+                      <Table>
+                        <THead>
+                          <tr>
+                            <TH>Nome</TH>
+                            <TH>Email</TH>
+                            <TH className="hidden md:table-cell">WhatsApp</TH>
+                            <TH className="hidden lg:table-cell">Categoria</TH>
                           </tr>
-                        ))}
-                      </TBody>
-                    </Table>
+                        </THead>
+                        <TBody>
+                          {preview.slice(0, 8).map((r, i) => (
+                            <tr key={i} className="align-top text-xs">
+                              <TD className="whitespace-pre-wrap break-words">{r.fullName}</TD>
+                              <TD className="whitespace-pre-wrap break-words">{r.email}</TD>
+                              <TD className="hidden whitespace-pre-wrap break-words md:table-cell">
+                                {r.whatsapp || "-"}
+                              </TD>
+                              <TD className="hidden whitespace-pre-wrap break-words lg:table-cell">
+                                {r.category || "-"}
+                              </TD>
+                            </tr>
+                          ))}
+                        </TBody>
+                      </Table>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button disabled={busyAction !== null} onClick={() => void importAll(false)} className="flex-1">
+                        {busyAction === "import" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="mr-2 h-4 w-4" />
+                        )}
+                        Importar (sem enviar)
+                      </Button>
+                      <Button disabled={busyAction !== null} onClick={() => void importAll(true)} className="flex-1">
+                        {busyAction === "import_send" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="mr-2 h-4 w-4" />
+                        )}
+                        Importar & enviar
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                    Sem pré-visualização. Importa um ficheiro para começar.
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button disabled={busyAction !== null} onClick={() => void importAll(false)} className="flex-1">
-                      {busyAction === "import" ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="mr-2 h-4 w-4" />
-                      )}
-                      Importar (sem enviar)
-                    </Button>
-                    <Button disabled={busyAction !== null} onClick={() => void importAll(true)} className="flex-1">
-                      {busyAction === "import_send" ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="mr-2 h-4 w-4" />
-                      )}
-                      Importar & enviar
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                  Sem pré-visualização. Importa um ficheiro para começar.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Lista */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle>Convidados</CardTitle>
-                <div className="relative w-full sm:w-96">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Procurar por nome, email, WhatsApp, categoria…"
-                    className="w-full rounded-lg pl-9"
-                  />
-                </div>
-              </div>
+          <Card className={clsx(showImport ? "lg:col-span-2" : "lg:col-span-3")}>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm">Convidados</CardTitle>
             </CardHeader>
             <CardContent>
               {/* Empty */}
@@ -508,27 +505,29 @@ export default function Page() {
                 <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-10 text-center">
                   <div className="mb-3 text-4xl">🗂️</div>
                   <div className="text-base font-medium">Nada encontrado</div>
-                  <div className="mt-1 text-sm text-slate-600">Ajusta a pesquisa ou importa um XLSX.</div>
+                  <div className="mt-1 text-sm text-slate-600">Ajusta a pesquisa ou ativa o importador.</div>
                   <div className="mt-4 flex gap-2">
                     <Button variant="outline" onClick={() => void fetchGuests()}>
                       <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
                     </Button>
-                    <Button onClick={() => fileInputRef.current?.click()}>
-                      <Plus className="mr-2 h-4 w-4" /> Importar XLSX
-                    </Button>
+                    {!showImport && (
+                      <Button onClick={() => setShowImport(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Importar XLSX
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Desktop: tabela */}
+              {/* Desktop: tabela compacta e sem “empurrar” botões */}
               {filtered.length > 0 && (
                 <div className="hidden sm:block">
                   <div className="rounded-xl border">
                     <Table>
                       <THead>
                         <tr>
-                          <TH className="w-[24%]">Nome</TH>
-                          <TH className="w-[26%]">Email</TH>
+                          <TH className="w-[28%]">Nome</TH>
+                          <TH className="w-[22%]">Email</TH>
                           <TH className="hidden w-[18%] md:table-cell">WhatsApp</TH>
                           <TH className="hidden w-[14%] lg:table-cell">Categoria</TH>
                           <TH className="w-[10%]">Estado</TH>
@@ -541,15 +540,11 @@ export default function Page() {
                           const waBusy = busyAction === `wa_${g.id}`;
                           const delBusy = busyAction === `delete_${g.id}`;
                           return (
-                            <tr key={g.id} className="align-top">
-                              <TD className="whitespace-pre-wrap break-words">{g.fullName}</TD>
-                              <TD className="whitespace-pre-wrap break-words">{g.email}</TD>
-                              <TD className="hidden whitespace-pre-wrap break-words md:table-cell">
-                                {g.whatsapp || "-"}
-                              </TD>
-                              <TD className="hidden whitespace-pre-wrap break-words lg:table-cell">
-                                {g.category || "-"}
-                              </TD>
+                            <tr key={g.id} className="align-top text-[13px] hover:bg-slate-50/60">
+                              <TD className="max-w-0 truncate">{g.fullName}</TD>
+                              <TD className="max-w-0 truncate">{g.email}</TD>
+                              <TD className="hidden max-w-0 truncate md:table-cell">{g.whatsapp || "-"}</TD>
+                              <TD className="hidden max-w-0 truncate lg:table-cell">{g.category || "-"}</TD>
                               <TD>
                                 {g.status === "checked_in" ? (
                                   <Badge className="bg-green-100 text-green-700">Presente</Badge>
@@ -560,11 +555,12 @@ export default function Page() {
                                 )}
                               </TD>
                               <TD>
-                                <div className="flex items-center justify-end gap-1">
+                                {/* Ícones-only, compactos, sem wrap */}
+                                <div className="flex items-center justify-end gap-1 whitespace-nowrap">
                                   <Button
-                                    size="sm"
+                                    size="lg"
                                     variant="ghost"
-                                    className=" rounded-md"
+                                    className="h-8 w-8 rounded-md"
                                     title="Abrir QR / link de check-in"
                                     onClick={() => {
                                       const url = `/checkin?token=${encodeURIComponent(g.token)}`;
@@ -574,7 +570,7 @@ export default function Page() {
                                     <QrCode className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    size="sm"
+                                    size="lg"
                                     variant="ghost"
                                     className=" rounded-md"
                                     title="Enviar e-mail"
@@ -584,22 +580,17 @@ export default function Page() {
                                     {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                                   </Button>
                                   <Button
-                                    
-                                    size="sm"
+                                    size="lg"
                                     variant="ghost"
-                                    className="rounded-md"
+                                    className=" rounded-md"
                                     title="Enviar WhatsApp"
                                     disabled={waBusy || busyAction !== null}
                                     onClick={() => void sendWhatsAppOne(g.id)}
                                   >
-                                    {waBusy ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <MessageCircle className="h-4 w-4" />
-                                    )}
+                                    {waBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
                                   </Button>
                                   <Button
-                                    size="sm"
+                                    size="lg"
                                     variant="ghost"
                                     className=" rounded-md text-red-600 hover:text-red-700"
                                     title={g.status === "checked_in" ? "Não é possível apagar presença registada" : "Apagar convidado"}
@@ -649,9 +640,9 @@ export default function Page() {
 
                         <div className="flex shrink-0 items-center gap-1">
                           <Button
-                            size="sm"
+                            size="lg"
                             variant="ghost"
-                            className=" rounded-lg"
+                            className="h-9 w-9 rounded-lg"
                             title="QR / link"
                             onClick={() => {
                               const url = `/checkin?token=${encodeURIComponent(g.token)}`;
@@ -661,9 +652,9 @@ export default function Page() {
                             <QrCode className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="sm"
+                            size="lg"
                             variant="ghost"
-                            className=" rounded-lg"
+                            className="h-9 w-9 rounded-lg"
                             title="E-mail"
                             disabled={emailBusy || busyAction !== null}
                             onClick={() => void sendOne(g.id)}
@@ -671,9 +662,9 @@ export default function Page() {
                             {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                           </Button>
                           <Button
-                            size="sm"
+                            size="lg"
                             variant="ghost"
-                            className=" rounded-lg"
+                            className="h-9 w-9 rounded-lg"
                             title="WhatsApp"
                             disabled={waBusy || busyAction !== null}
                             onClick={() => void sendWhatsAppOne(g.id)}
@@ -696,7 +687,7 @@ export default function Page() {
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <Button
             variant="ghost"
-            size="md"
+            size="lg"
             className="h-10 w-10 rounded-lg"
             title="Atualizar"
             onClick={() => void fetchGuests()}
@@ -705,13 +696,13 @@ export default function Page() {
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
           </Button>
           <a href="/scan" title="Scanner">
-            <Button variant="default" size="md" className="h-10 w-10 rounded-lg">
+            <Button variant="default" size="lg" className="h-10 w-10 rounded-lg">
               <QrCode className="h-5 w-5" />
             </Button>
           </a>
           <Button
             variant="default"
-            size="md"
+            size="lg"
             className="h-10 w-10 rounded-lg"
             title="WhatsApp a todos"
             onClick={() => void sendWhatsAppAll()}
