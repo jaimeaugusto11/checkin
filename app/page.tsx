@@ -353,7 +353,7 @@ export default function Page() {
 
               <Button
                 variant="ghost"
-                size="md"
+                size="lg"
                 title="Exportar CSV"
                 onClick={exportCsv}
                 className="rounded-lg"
@@ -362,7 +362,7 @@ export default function Page() {
               </Button>
 
               <a href="/scan" title="Abrir Scanner">
-                <Button variant="default" size="md" className="rounded-lg">
+                <Button variant="default" size="lg" className="rounded-lg">
                   <QrCode className="h-4 w-4" />
                 </Button>
               </a>
@@ -562,9 +562,9 @@ export default function Page() {
                               <TD>
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
-                                    size="md"
+                                    size="sm"
                                     variant="ghost"
-                                    className="h-8 w-8 rounded-md"
+                                    className=" rounded-md"
                                     title="Abrir QR / link de check-in"
                                     onClick={() => {
                                       const url = `/checkin?token=${encodeURIComponent(g.token)}`;
@@ -574,9 +574,9 @@ export default function Page() {
                                     <QrCode className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    size="md"
+                                    size="sm"
                                     variant="ghost"
-                                    className="h-8 w-8 rounded-md"
+                                    className=" rounded-md"
                                     title="Enviar e-mail"
                                     disabled={emailBusy || busyAction !== null}
                                     onClick={() => void sendOne(g.id)}
@@ -584,9 +584,10 @@ export default function Page() {
                                     {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                                   </Button>
                                   <Button
-                                    size="lg"
+                                    
+                                    size="sm"
                                     variant="ghost"
-                                    className="h-8 w-8 rounded-md"
+                                    className="rounded-md"
                                     title="Enviar WhatsApp"
                                     disabled={waBusy || busyAction !== null}
                                     onClick={() => void sendWhatsAppOne(g.id)}
@@ -598,9 +599,9 @@ export default function Page() {
                                     )}
                                   </Button>
                                   <Button
-                                    size="lg"
+                                    size="sm"
                                     variant="ghost"
-                                    className="h-8 w-8 rounded-md text-red-600 hover:text-red-700"
+                                    className=" rounded-md text-red-600 hover:text-red-700"
                                     title={g.status === "checked_in" ? "Não é possível apagar presença registada" : "Apagar convidado"}
                                     disabled={delBusy || g.status === "checked_in" || busyAction !== null}
                                     onClick={() => void deleteGuest(g.id)}
@@ -648,9 +649,9 @@ export default function Page() {
 
                         <div className="flex shrink-0 items-center gap-1">
                           <Button
-                            size="lg"
+                            size="sm"
                             variant="ghost"
-                            className="h-9 w-9 rounded-lg"
+                            className=" rounded-lg"
                             title="QR / link"
                             onClick={() => {
                               const url = `/checkin?token=${encodeURIComponent(g.token)}`;
@@ -660,9 +661,9 @@ export default function Page() {
                             <QrCode className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="lg"
+                            size="sm"
                             variant="ghost"
-                            className="h-9 w-9 rounded-lg"
+                            className=" rounded-lg"
                             title="E-mail"
                             disabled={emailBusy || busyAction !== null}
                             onClick={() => void sendOne(g.id)}
@@ -670,9 +671,9 @@ export default function Page() {
                             {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                           </Button>
                           <Button
-                            size="lg"
+                            size="sm"
                             variant="ghost"
-                            className="h-9 w-9 rounded-lg"
+                            className=" rounded-lg"
                             title="WhatsApp"
                             disabled={waBusy || busyAction !== null}
                             onClick={() => void sendWhatsAppOne(g.id)}
