@@ -1,5 +1,7 @@
 {
   "/page": "app/page.js",
   "/icon.svg/route": "app/icon.svg/route.js",
-  "/api/guests/route": "app/api/guests/route.js"
+  "/api/guests/route": "app/api/guests/route.js",
+  "/api/guests/[id]/whatsapp/route": "app/api/guests/[id]/whatsapp/route.js",
+  "/api/guests/send-all-whatsapp/route": "app/api/guests/send-all-whatsapp/route.js"
 }

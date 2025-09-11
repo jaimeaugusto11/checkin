@@ -73,8 +73,10 @@ export async function POST(req: NextRequest) {
     const snap = await adminDb.collection("guests").get();
     const guests = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 
-    // Só quem tem whatsapp/phone e token
-    const candidates = guests.filter((g) => (g?.whatsapp || g?.phone) && g?.token);
+    // Só quem tem whatsapp/phone, token e ainda não foi enviado
+    const candidates = guests.filter(
+      (g) => (g?.whatsapp || g?.phone) && g?.token && g?.status !== "Enviado"
+    );
 
     // Envio sequencial (evita rate limit). Se quiseres, muda para 2–3.
     const results: ItemResult[] = [];
@@ -82,6 +84,11 @@ export async function POST(req: NextRequest) {
       const r = await callOne(origin, g.id, { dryRun });
       if (r.ok) {
         results.push({ id: g.id, ok: true, status: r.status });
+
+        // Atualiza o status para "sent" no Firestore (se não for dryRun)
+        if (!dryRun) {
+          await adminDb.collection("guests").doc(g.id).update({ status: "Enviado" });
+        }
       } else {
         results.push({
           id: g.id,
@@ -107,7 +114,9 @@ export async function POST(req: NextRequest) {
       skipped,
       total: guests.length,
       dryRun,
-      lastError: lastFailed ? { id: lastFailed.id, status: lastFailed.status, reason: lastFailed.reason } : null,
+      lastError: lastFailed
+        ? { id: lastFailed.id, status: lastFailed.status, reason: lastFailed.reason }
+        : null,
     });
   } catch (e: any) {
     console.error("[send-all-whatsapp] error:", e);

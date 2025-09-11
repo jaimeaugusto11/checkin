@@ -37,7 +37,12 @@ type ImportRow = {
 type JsonGuests = { guests?: Guest[] };
 type JsonError = { error?: string; details?: unknown };
 type JsonBulk = { error?: string };
-type JsonSendAllWa = { sent?: number; skipped?: number; failed?: number; error?: string };
+type JsonSendAllWa = {
+  sent?: number;
+  skipped?: number;
+  failed?: number;
+  error?: string;
+};
 
 function normalizeHeader(h: string): keyof ImportRow | string {
   const s = h.trim().toLowerCase();
@@ -93,11 +98,15 @@ export default function Page() {
     const ws = wb.Sheets[wb.SheetNames[0]];
     if (!ws) return [];
 
-    const sheet = XLSX.utils.sheet_to_json<unknown[]>(ws as XLSX.WorkSheet, { header: 1 });
+    const sheet = XLSX.utils.sheet_to_json<unknown[]>(ws as XLSX.WorkSheet, {
+      header: 1,
+    });
     const [head, ...rows] = sheet as [unknown[], ...unknown[][]] | [];
     if (!head || !Array.isArray(head)) return [];
 
-    const map = (head as unknown[]).map((h) => normalizeHeader(String(h ?? "")));
+    const map = (head as unknown[]).map((h) =>
+      normalizeHeader(String(h ?? ""))
+    );
     const parsed: ImportRow[] = (rows as unknown[][])
       .filter((r) => Array.isArray(r) && r.length > 0)
       .map((r) => {
@@ -105,7 +114,8 @@ export default function Page() {
         map.forEach((k, i) => {
           const key = String(k);
           const cell = r[i];
-          obj[key] = typeof cell === "string" ? cell.trim() : String(cell ?? "").trim();
+          obj[key] =
+            typeof cell === "string" ? cell.trim() : String(cell ?? "").trim();
         });
         const row: ImportRow = {
           fullName: obj.fullName || "",
@@ -123,7 +133,8 @@ export default function Page() {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => setPreview(parseWorkbook(reader.result as ArrayBuffer));
+    reader.onload = () =>
+      setPreview(parseWorkbook(reader.result as ArrayBuffer));
     reader.readAsArrayBuffer(f);
   }
 
@@ -133,7 +144,8 @@ export default function Page() {
     const f = e.dataTransfer?.files?.[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => setPreview(parseWorkbook(reader.result as ArrayBuffer));
+    reader.onload = () =>
+      setPreview(parseWorkbook(reader.result as ArrayBuffer));
     reader.readAsArrayBuffer(f);
   }, []);
 
@@ -212,7 +224,12 @@ export default function Page() {
   }
 
   async function deleteGuest(id: string): Promise<void> {
-    if (!confirm("Tens a certeza que queres apagar este convidado? Esta ação é irreversível.")) return;
+    if (
+      !confirm(
+        "Tens a certeza que queres apagar este convidado? Esta ação é irreversível."
+      )
+    )
+      return;
     setBusyAction(`delete_${id}`);
     try {
       const r = await fetch(`/api/guests/${id}`, { method: "DELETE" });
@@ -235,7 +252,10 @@ export default function Page() {
       const raw = await r.text();
       let data: JsonError | { raw: string } = {};
       try {
-        data = ct.includes("application/json") && raw ? (JSON.parse(raw) as JsonError) : { raw };
+        data =
+          ct.includes("application/json") && raw
+            ? (JSON.parse(raw) as JsonError)
+            : { raw };
       } catch {
         data = { raw };
       }
@@ -256,10 +276,17 @@ export default function Page() {
   }
 
   async function sendWhatsAppAll(): Promise<void> {
-    if (!confirm("Enviar WhatsApp com QR para todos os convidados com WhatsApp definido?")) return;
+    if (
+      !confirm(
+        "Enviar WhatsApp com QR para todos os convidados com WhatsApp definido?"
+      )
+    )
+      return;
     setBusyAction("wa_all");
     try {
-      const r = await fetch(`/api/guests/send-all-whatsapp`, { method: "POST" });
+      const r = await fetch(`/api/guests/send-all-whatsapp`, {
+        method: "POST",
+      });
       const j = (await r.json().catch(() => ({}))) as JsonSendAllWa | JsonError;
       if (!r.ok) {
         const je = j as JsonError;
@@ -269,7 +296,9 @@ export default function Page() {
         const sent = ok.sent ?? 0;
         const skipped = ok.skipped ?? 0;
         const failed = ok.failed ?? 0;
-        alert(`WhatsApp → enviados: ${sent}, ignorados: ${skipped}, falhados: ${failed}`);
+        alert(
+          `WhatsApp → enviados: ${sent}, ignorados: ${skipped}, falhados: ${failed}`
+        );
       }
     } finally {
       setBusyAction(null);
@@ -294,7 +323,14 @@ export default function Page() {
 
   /* -------- Export -------- */
   function exportCsv(): void {
-    const headers = ["Nome", "Email", "WhatsApp", "Categoria", "Estado", "CheckInAt"];
+    const headers = [
+      "Nome",
+      "Email",
+      "WhatsApp",
+      "Categoria",
+      "Estado",
+      "CheckInAt",
+    ];
     const rows = guests.map((g) => [
       g.fullName,
       g.email,
@@ -324,11 +360,21 @@ export default function Page() {
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-white text-white">
-              <Image src={"/logo.jpeg"} alt="logo" width={20} height={20} className="h-10 w-10" />
+              <Image
+                src={"/logo.jpeg"}
+                alt="logo"
+                width={20}
+                height={20}
+                className="h-10 w-10"
+              />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold leading-tight">Gestor Diodigital</h1>
-              <p className="text-xs text-slate-500">Importar • Convidar • Check-in</p>
+              <h1 className="truncate text-lg font-semibold leading-tight">
+                Gestor Diodigital
+              </h1>
+              <p className="text-xs text-slate-500">
+                Importar • Convidar • Check-in
+              </p>
             </div>
 
             {/* Ações principais (ícones-only) */}
@@ -341,10 +387,20 @@ export default function Page() {
                 onClick={() => void fetchGuests()}
                 className="rounded-md"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
               </Button>
 
-              <Button variant="ghost" size="lg" title="Exportar CSV" onClick={exportCsv} className="rounded-md">
+              <Button
+                variant="ghost"
+                size="lg"
+                title="Exportar CSV"
+                onClick={exportCsv}
+                className="rounded-md"
+              >
                 <Download className="h-4 w-4" />
               </Button>
 
@@ -362,7 +418,11 @@ export default function Page() {
                 disabled={busyAction !== null}
                 className="rounded-md"
               >
-                {busyAction === "email_all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {busyAction === "email_all" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
 
               <Button
@@ -373,7 +433,11 @@ export default function Page() {
                 disabled={busyAction !== null}
                 className="rounded-md"
               >
-                {busyAction === "wa_all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                {busyAction === "wa_all" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageCircle className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
@@ -412,7 +476,8 @@ export default function Page() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-xs text-slate-600">
-                  Estrutura: <b>Nome completo</b>, <b>WhatsApp</b>, <b>E-mail</b>, <b>Categoria</b> (1ª folha).
+                  Estrutura: <b>Nome completo</b>, <b>WhatsApp</b>,{" "}
+                  <b>E-mail</b>, <b>Categoria</b> (1ª folha).
                 </p>
 
                 <label
@@ -428,17 +493,30 @@ export default function Page() {
                       <Upload className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">Arrasta o .xlsx aqui</div>
-                      <div className="text-xs text-slate-500">ou toca para selecionar</div>
+                      <div className="truncate text-sm font-medium">
+                        Arrasta o .xlsx aqui
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        ou toca para selecionar
+                      </div>
                     </div>
                   </div>
-                  <input ref={fileInputRef} type="file" accept=".xlsx" className="sr-only" onChange={onFile} />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx"
+                    className="sr-only"
+                    onChange={onFile}
+                  />
                 </label>
 
                 {preview.length > 0 ? (
                   <>
                     <div className="text-xs text-slate-700">
-                      Pré-visualização <span className="text-slate-500">({preview.length} linhas)</span>
+                      Pré-visualização{" "}
+                      <span className="text-slate-500">
+                        ({preview.length} linhas)
+                      </span>
                     </div>
                     <div className="rounded-lg border">
                       <Table>
@@ -453,8 +531,12 @@ export default function Page() {
                         <TBody>
                           {preview.slice(0, 8).map((r, i) => (
                             <tr key={i} className="align-top text-xs">
-                              <TD className="whitespace-pre-wrap break-words">{r.fullName}</TD>
-                              <TD className="whitespace-pre-wrap break-words">{r.email}</TD>
+                              <TD className="whitespace-pre-wrap break-words">
+                                {r.fullName}
+                              </TD>
+                              <TD className="whitespace-pre-wrap break-words">
+                                {r.email}
+                              </TD>
                               <TD className="hidden whitespace-pre-wrap break-words md:table-cell">
                                 {r.whatsapp || "-"}
                               </TD>
@@ -467,7 +549,11 @@ export default function Page() {
                       </Table>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button disabled={busyAction !== null} onClick={() => void importAll(false)} className="flex-1">
+                      <Button
+                        disabled={busyAction !== null}
+                        onClick={() => void importAll(false)}
+                        className="flex-1"
+                      >
                         {busyAction === "import" ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
@@ -475,7 +561,11 @@ export default function Page() {
                         )}
                         Importar (sem enviar)
                       </Button>
-                      <Button disabled={busyAction !== null} onClick={() => void importAll(true)} className="flex-1">
+                      <Button
+                        disabled={busyAction !== null}
+                        onClick={() => void importAll(true)}
+                        className="flex-1"
+                      >
                         {busyAction === "import_send" ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
@@ -495,7 +585,9 @@ export default function Page() {
           )}
 
           {/* Lista */}
-          <Card className={clsx(showImport ? "lg:col-span-2" : "lg:col-span-3")}>
+          <Card
+            className={clsx(showImport ? "lg:col-span-2" : "lg:col-span-3")}
+          >
             <CardHeader className="py-3">
               <CardTitle className="text-sm">Convidados</CardTitle>
             </CardHeader>
@@ -505,9 +597,14 @@ export default function Page() {
                 <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-10 text-center">
                   <div className="mb-3 text-4xl">🗂️</div>
                   <div className="text-base font-medium">Nada encontrado</div>
-                  <div className="mt-1 text-sm text-slate-600">Ajusta a pesquisa ou ativa o importador.</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    Ajusta a pesquisa ou ativa o importador.
+                  </div>
                   <div className="mt-4 flex gap-2">
-                    <Button variant="outline" onClick={() => void fetchGuests()}>
+                    <Button
+                      variant="outline"
+                      onClick={() => void fetchGuests()}
+                    >
                       <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
                     </Button>
                     {!showImport && (
@@ -528,8 +625,12 @@ export default function Page() {
                         <tr>
                           <TH className="w-[28%]">Nome</TH>
                           <TH className="w-[22%]">Email</TH>
-                          <TH className="hidden w-[18%] md:table-cell">WhatsApp</TH>
-                          <TH className="hidden w-[14%] lg:table-cell">Categoria</TH>
+                          <TH className="hidden w-[18%] md:table-cell">
+                            WhatsApp
+                          </TH>
+                          <TH className="hidden w-[14%] lg:table-cell">
+                            Categoria
+                          </TH>
                           <TH className="w-[10%]">Estado</TH>
                           <TH className="w-[8%] text-right">Ações</TH>
                         </tr>
@@ -540,18 +641,33 @@ export default function Page() {
                           const waBusy = busyAction === `wa_${g.id}`;
                           const delBusy = busyAction === `delete_${g.id}`;
                           return (
-                            <tr key={g.id} className="align-top text-[13px] hover:bg-slate-50/60">
+                            <tr
+                              key={g.id}
+                              className="align-top text-[13px] hover:bg-slate-50/60"
+                            >
                               <TD className="max-w-0 truncate">{g.fullName}</TD>
                               <TD className="max-w-0 truncate">{g.email}</TD>
-                              <TD className="hidden max-w-0 truncate md:table-cell">{g.whatsapp || "-"}</TD>
-                              <TD className="hidden max-w-0 truncate lg:table-cell">{g.category || "-"}</TD>
+                              <TD className="hidden max-w-0 truncate md:table-cell">
+                                {g.whatsapp || "-"}
+                              </TD>
+                              <TD className="hidden max-w-0 truncate lg:table-cell">
+                                {g.category || "-"}
+                              </TD>
                               <TD>
                                 {g.status === "checked_in" ? (
-                                  <Badge className="bg-green-100 text-green-700">Presente</Badge>
+                                  <Badge className="bg-green-100 text-green-700">
+                                    Presente
+                                  </Badge>
                                 ) : g.status === "invited" ? (
                                   <Badge>Convidado</Badge>
+                                ) : g.status === "Enviado" ? (
+                                  <Badge className="bg-blue-100 text-blue-700">
+                                    Enviado
+                                  </Badge>
                                 ) : (
-                                  <Badge className="bg-yellow-100 text-yellow-700">Pendente</Badge>
+                                  <Badge className="bg-yellow-100 text-yellow-700">
+                                    Pendente
+                                  </Badge>
                                 )}
                               </TD>
                               <TD>
@@ -563,8 +679,15 @@ export default function Page() {
                                     className="h-8 w-8 rounded-md"
                                     title="Abrir QR / link de check-in"
                                     onClick={() => {
-                                      const url = `/checkin?token=${encodeURIComponent(g.token)}`;
-                                      if (typeof window !== "undefined") window.open(url, "_blank", "noopener,noreferrer");
+                                      const url = `/checkin?token=${encodeURIComponent(
+                                        g.token
+                                      )}`;
+                                      if (typeof window !== "undefined")
+                                        window.open(
+                                          url,
+                                          "_blank",
+                                          "noopener,noreferrer"
+                                        );
                                     }}
                                   >
                                     <QrCode className="h-4 w-4" />
@@ -577,7 +700,11 @@ export default function Page() {
                                     disabled={emailBusy || busyAction !== null}
                                     onClick={() => void sendOne(g.id)}
                                   >
-                                    {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                                    {emailBusy ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Mail className="h-4 w-4" />
+                                    )}
                                   </Button>
                                   <Button
                                     size="lg"
@@ -587,17 +714,33 @@ export default function Page() {
                                     disabled={waBusy || busyAction !== null}
                                     onClick={() => void sendWhatsAppOne(g.id)}
                                   >
-                                    {waBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                                    {waBusy ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <MessageCircle className="h-4 w-4" />
+                                    )}
                                   </Button>
                                   <Button
                                     size="lg"
                                     variant="ghost"
                                     className=" rounded-md text-red-600 hover:text-red-700"
-                                    title={g.status === "checked_in" ? "Não é possível apagar presença registada" : "Apagar convidado"}
-                                    disabled={delBusy || g.status === "checked_in" || busyAction !== null}
+                                    title={
+                                      g.status === "checked_in"
+                                        ? "Não é possível apagar presença registada"
+                                        : "Apagar convidado"
+                                    }
+                                    disabled={
+                                      delBusy ||
+                                      g.status === "checked_in" ||
+                                      busyAction !== null
+                                    }
                                     onClick={() => void deleteGuest(g.id)}
                                   >
-                                    {delBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                    {delBusy ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
                                   </Button>
                                 </div>
                               </TD>
@@ -616,11 +759,18 @@ export default function Page() {
                   const emailBusy = busyAction === `email_${g.id}`;
                   const waBusy = busyAction === `wa_${g.id}`;
                   return (
-                    <div key={g.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div
+                      key={g.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">{g.fullName}</div>
-                          <div className="truncate text-xs text-slate-600">{g.email}</div>
+                          <div className="truncate text-sm font-medium">
+                            {g.fullName}
+                          </div>
+                          <div className="truncate text-xs text-slate-600">
+                            {g.email}
+                          </div>
                           {(g.whatsapp || g.category) && (
                             <div className="mt-1 space-x-2 text-[11px] text-slate-600">
                               {g.whatsapp && <span>📱 {g.whatsapp}</span>}
@@ -629,11 +779,15 @@ export default function Page() {
                           )}
                           <div className="mt-2">
                             {g.status === "checked_in" ? (
-                              <Badge className="bg-green-100 text-green-700">Presente</Badge>
+                              <Badge className="bg-green-100 text-green-700">
+                                Presente
+                              </Badge>
                             ) : g.status === "invited" ? (
                               <Badge>Convidado</Badge>
                             ) : (
-                              <Badge className="bg-yellow-100 text-yellow-700">Pendente</Badge>
+                              <Badge className="bg-yellow-100 text-yellow-700">
+                                Pendente
+                              </Badge>
                             )}
                           </div>
                         </div>
@@ -645,8 +799,15 @@ export default function Page() {
                             className="h-9 w-9 rounded-lg"
                             title="QR / link"
                             onClick={() => {
-                              const url = `/checkin?token=${encodeURIComponent(g.token)}`;
-                              if (typeof window !== "undefined") window.open(url, "_blank", "noopener,noreferrer");
+                              const url = `/checkin?token=${encodeURIComponent(
+                                g.token
+                              )}`;
+                              if (typeof window !== "undefined")
+                                window.open(
+                                  url,
+                                  "_blank",
+                                  "noopener,noreferrer"
+                                );
                             }}
                           >
                             <QrCode className="h-4 w-4" />
@@ -659,7 +820,11 @@ export default function Page() {
                             disabled={emailBusy || busyAction !== null}
                             onClick={() => void sendOne(g.id)}
                           >
-                            {emailBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                            {emailBusy ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Mail className="h-4 w-4" />
+                            )}
                           </Button>
                           <Button
                             size="lg"
@@ -669,7 +834,11 @@ export default function Page() {
                             disabled={waBusy || busyAction !== null}
                             onClick={() => void sendWhatsAppOne(g.id)}
                           >
-                            {waBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                            {waBusy ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MessageCircle className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -693,10 +862,18 @@ export default function Page() {
             onClick={() => void fetchGuests()}
             disabled={loading || busyAction !== null}
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-5 w-5" />
+            )}
           </Button>
           <a href="/scan" title="Scanner">
-            <Button variant="default" size="lg" className="h-10 w-10 rounded-lg">
+            <Button
+              variant="default"
+              size="lg"
+              className="h-10 w-10 rounded-lg"
+            >
               <QrCode className="h-5 w-5" />
             </Button>
           </a>
@@ -708,7 +885,11 @@ export default function Page() {
             onClick={() => void sendWhatsAppAll()}
             disabled={busyAction !== null}
           >
-            {busyAction === "wa_all" ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
+            {busyAction === "wa_all" ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <MessageCircle className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>
